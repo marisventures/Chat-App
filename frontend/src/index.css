@@ -1,0 +1,308 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Custom properties for theming - plain CSS */
+:root {
+  /* Dark theme (default) */
+  --color-brand-primary: #00a884;
+  --color-chat-bg: #0b141a;
+  --color-sidebar-bg: #111b21;
+  --color-header-bg: #202c33;
+  --color-bubble-received: #202c33;
+  --color-bubble-sent: #005c4b;
+  --color-text-primary: #e9edef;
+  --color-text-secondary: #8696a0;
+  --color-border: #222d34;
+  --color-input-bg: #2a3034;
+}
+
+/* Light theme overrides */
+[data-theme="light"] {
+  --color-chat-bg: #f0f2f5;
+  --color-sidebar-bg: #ffffff;
+  --color-header-bg: #f0f2f5;
+  --color-bubble-received: #ffffff;
+  --color-bubble-sent: #d9fdd3;
+  --color-text-primary: #111b21;
+  --color-text-secondary: #667781;
+  --color-border: #d1d7db;
+  --color-input-bg: #f0f2f5;
+}
+
+/* Tailwind's font configuration */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-chat-bg);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+}
+
+/* Additional utility classes for Tailwind-generated utilities that need transitions */
+.chat-container {
+  @apply flex h-screen overflow-hidden;
+  background-color: var(--color-sidebar-bg);
+  transition: background-color 0.3s ease;
+}
+
+.chat-sidebar {
+  @apply w-full md:w-80 lg:w-96 border-r flex flex-col shrink-0;
+  background-color: var(--color-sidebar-bg);
+  border-color: var(--color-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.bg-sidebar-bg {
+  background-color: var(--color-sidebar-bg);
+}
+
+.bg-chat-bg {
+  background-color: var(--color-chat-bg);
+}
+
+@media (min-width: 768px) {
+  .chat-sidebar {
+    width: 320px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .chat-sidebar {
+    width: 384px;
+  }
+}
+
+.chat-main {
+  @apply flex-1 flex flex-col relative shadow-2xl;
+  background-color: var(--color-chat-bg);
+  transition: background-color 0.3s ease;
+}
+
+/* Chat bubbles */
+.chat-bubble {
+  @apply max-w-[85%] md:max-w-md px-3 py-2 rounded-lg text-[14.2px] shadow-sm relative;
+}
+
+.chat-bubble-sent {
+  @apply self-end rounded-tr-none;
+  background-color: var(--color-bubble-sent);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.chat-bubble-received {
+  @apply self-start rounded-tl-none;
+  background-color: var(--color-bubble-received);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Header */
+header {
+  @apply h-16 px-4 flex items-center justify-between shrink-0 sticky top-0 z-10 w-full;
+  background-color: var(--color-header-bg);
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Input areas */
+.input-bar {
+  @apply px-4 py-2 flex items-center gap-4 shrink-0 relative;
+  background-color: var(--color-header-bg);
+  transition: background-color 0.3s ease;
+}
+
+.message-input {
+  @apply flex-1 rounded-lg px-4 py-2 shadow-sm;
+  background-color: var(--color-input-bg);
+  transition: background-color 0.3s ease;
+}
+
+.message-input input {
+  @apply w-full border-none outline-none text-sm;
+  color: var(--color-text-primary);
+  background-color: transparent;
+}
+
+.message-input input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+/* Icon and text color utilities */
+.text-text-primary {
+  color: var(--color-text-primary);
+  transition: color 0.3s ease;
+}
+
+.text-text-secondary {
+  color: var(--color-text-secondary);
+  transition: color 0.3s ease;
+}
+
+.text-brand-primary {
+  color: var(--color-brand-primary);
+  transition: color 0.3s ease;
+}
+
+/* Background utilities */
+.bg-header-bg {
+  background-color: var(--color-header-bg);
+  transition: background-color 0.3s ease;
+}
+
+.bg-input-bg {
+  background-color: var(--color-input-bg);
+  transition: background-color 0.3s ease;
+}
+
+.bg-brand-primary {
+  background-color: var(--color-brand-primary);
+}
+
+.border-border {
+  border-color: var(--color-border);
+  transition: border-color 0.3s ease;
+}
+
+.border-bubble-sent {
+  border-left-color: var(--color-bubble-sent);
+}
+
+.border-bubble-received {
+  border-right-color: var(--color-bubble-received);
+}
+
+.border-l-bubble-sent {
+  border-left-color: var(--color-bubble-sent);
+}
+
+.border-r-bubble-received {
+  border-right-color: var(--color-bubble-received);
+}
+
+/* Hover states */
+button:not(:disabled):hover {
+  color: var(--color-brand-primary);
+}
+
+.hover\:bg-opacity-90:hover {
+  opacity: 0.9;
+}
+
+/* File preview background */
+.bg-\[\#2a3034\] {
+  background-color: var(--color-input-bg);
+}
+
+/* Chat list hover */
+button.hover\:bg-header-bg:hover,
+div.hover\:bg-header-bg:hover {
+  background-color: var(--color-header-bg);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-sidebar-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* Emoji picker theme integration */
+.emoji-picker-react {
+  --emoji-size: 24px;
+  --category-emoji-size: 24px;
+  --input-font-size: 14px;
+  --input-border-color: var(--color-border);
+  --input-bg-color: var(--color-header-bg);
+  --bg-color: var(--color-header-bg);
+  --category-border-color: var(--color-border);
+  --category-button-color: var(--color-text-secondary);
+  --category-button-active-color: var(--color-text-primary);
+  --category-button-hover-color: var(--color-text-primary);
+  --border-color: var(--color-border);
+  --button-active-bg-color: var(--color-brand-primary);
+  --skin-tone-color: var(--color-text-secondary);
+}
+
+.emoji-mart {
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+}
+
+.emoji-mart-bar {
+  background: var(--color-header-bg);
+  border-color: var(--color-border);
+}
+
+.emoji-mart-search input {
+  background: var(--color-header-bg);
+  color: var(--color-text-primary);
+  border-color: var(--color-border);
+}
+
+.emoji-mart-search input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.emoji-mart-category button.active {
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  border-bottom-color: var(--color-brand-primary);
+}
+
+/* Modal */
+.fixed.inset-0.bg-black\/50 {
+  backdrop-filter: blur(2px);
+}
+
+/* Animation helpers */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .chat-sidebar {
+    position: absolute;
+    z-index: 40;
+    height: 100%;
+    display: none;
+  }
+  
+  .chat-sidebar.show {
+    display: flex;
+  }
+  
+  .chat-main {
+    width: 100%;
+  }
+}
