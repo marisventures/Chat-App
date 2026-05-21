@@ -1,4 +1,4 @@
-// Main server entry point
+ // Main server entry point
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -9,8 +9,17 @@ import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import messageRoutes from './routes/messages.js';
 import userRoutes from './routes/users.js';
+import statusRoutes from './routes/status.js';
 import { authenticateToken } from './middleware/auth.js';
 import { connectDB } from './config/database.js';
+import Status from './models/Status.js';
+import Message from './models/Message.js';
+import Chat from './models/Chat.js';
+import { fileURLToPath } from 'url';
+import path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -60,21 +69,42 @@ app.use(express.urlencoded({ extended: true }));
 app.set('io', io);
 
 // Connect to database
-connectDB();
+connectDB().then((conn) => {
+  if (conn) {
+    console.log('✓ Database connected successfully');
+  } else {
+    console.error('✗ Failed to connect to database');
+  }
+}).catch((err) => {
+  console.error('✗ Database connection error:', err.message);
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', authenticateToken, chatRoutes);
 app.use('/api/messages', authenticateToken, messageRoutes);
 app.use('/api/users', authenticateToken, userRoutes);
+app.use('/api/status', authenticateToken, statusRoutes);
 
 // Serve uploaded files statically
-app.use('/uploads', express.static('backend/uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Auto-delete expired statuses every hour
+setInterval(async () => {
+  try {
+    const result = await Status.deleteMany({ expiresAt: { $lt: new Date() } });
+    if (result.deletedCount > 0) {
+      console.log(`Auto-deleted ${result.deletedCount} expired statuses`);
+    }
+  } catch (error) {
+    console.error('Error auto-deleting expired statuses:', error);
+  }
+}, 3600000); // 1 hour
 
 // Socket.io connection handling with JWT authentication and presence tracking
 const activeUsers = new Map(); // socket.id -> userId
@@ -174,7 +204,50 @@ io.on('connection', (socket) => {
     userActivity.set(userId, Date.now());
   });
 
-  // Handle disconnect (tab close, refresh, logout)
+   // Handle status view tracking
+   socket.on('status-viewed', ({ statusId, viewDuration }) => {
+     console.log(`Status ${statusId} viewed by ${userId} for ${viewDuration}ms`);
+   });
+
+   // Handle joining chat room
+   socket.on('join chat', (chatId) => {
+     socket.join(chatId);
+     console.log(`User ${userId} joined chat ${chatId}`);
+   });
+
+    // Handle message read receipt
+    socket.on('message read', async ({ messageId, chatId }) => {
+      try {
+        const message = await Message.findById(messageId);
+
+        if (message) {
+          // Update status to read
+          if (message.status !== 'read') {
+            message.status = 'read';
+            
+            // Add to readBy if not already there
+            if (!message.readBy.includes(userId)) {
+              message.readBy.push(userId);
+            }
+            
+            await message.save();
+
+            // Broadcast updated message status to all users in the chat room
+            io.to(chatId).emit('message-status-updated', {
+              messageId,
+              status: 'read',
+              readBy: message.readBy
+            });
+
+            console.log(`Message ${messageId} marked as read by ${userId}`);
+          }
+        }
+      } catch (error) {
+        console.error('Error updating message status:', error);
+      }
+    });
+
+    // Handle disconnect (tab close, refresh, logout)
   socket.on('disconnect', (reason) => {
     console.log(`Socket ${socket.id} disconnected: ${reason}`);
 

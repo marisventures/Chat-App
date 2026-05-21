@@ -1,0 +1,153 @@
+import { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { X, ChevronRight, Users } from 'lucide-react';
+import { useStatus, StatusItem } from '../contexts/StatusContext';
+import StatusCircle from './StatusCircle';
+import { usePresence } from '../contexts/PresenceContext';
+import { useAuth } from '../contexts/AuthContext';
+
+interface StatusModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function StatusModal({ isOpen, onClose }: StatusModalProps) {
+  const { contactsStatuses, myStatuses, openStatusViewer } = useStatus();
+  const { users } = usePresence();
+  const { user } = useAuth();
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  const handleStatusClick = (statuses: StatusItem[], startIndex = 0) => {
+    openStatusViewer(statuses, startIndex);
+    onClose();
+  };
+
+  const recentStatuses = Array.from(contactsStatuses.entries())
+    .filter(([_, statuses]) => statuses.length > 0)
+    .sort((a, b) => new Date(b[1][0].createdAt).getTime() - new Date(a[1][0].createdAt).getTime());
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-40 bg-black/50 flex items-center justify-center p-4"
+        >
+          <motion.div
+            ref={modalRef}
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-sidebar-bg rounded-2xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
+          >
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-text-primary">Status</h2>
+              <button
+                onClick={onClose}
+                className="p-2 text-text-secondary hover:text-text-primary hover:bg-header-bg rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              <button
+                onClick={() => handleStatusClick(myStatuses)}
+                className="w-full flex items-center gap-4 p-3 hover:bg-header-bg rounded-lg transition-colors"
+              >
+                <StatusCircle
+                  src={user?.avatar}
+                  username={user?.username}
+                  hasStatus={myStatuses.length > 0}
+                  isOwn={true}
+                  size={52}
+                />
+                <div className="flex-1 text-left">
+                  <p className="font-semibold text-text-primary">My Status</p>
+                  <p className="text-sm text-text-secondary">
+                    {myStatuses.length > 0
+                      ? `${myStatuses.length} update${myStatuses.length > 1 ? 's' : ''}`
+                      : 'Tap to add status update'}
+                  </p>
+                </div>
+                <ChevronRight size={18} className="text-text-secondary" />
+              </button>
+
+              <div className="mt-2">
+                <div className="px-3 py-2 flex items-center gap-2 text-text-secondary">
+                  <Users size={16} />
+                  <span className="text-sm font-medium">Recent updates</span>
+                </div>
+
+                {recentStatuses.length === 0 ? (
+                  <div className="p-4 text-center text-text-secondary">
+                    No recent status updates
+                  </div>
+                ) : (
+                  recentStatuses.map(([userId, statuses]) => {
+                    const firstStatus = statuses[0];
+                    const presence = users.get(userId);
+                    return (
+                      <button
+                        key={userId}
+                        onClick={() => handleStatusClick(statuses)}
+                        className="w-full flex items-center gap-4 p-3 hover:bg-header-bg rounded-lg transition-colors"
+                      >
+                        <StatusCircle
+                          src={firstStatus.user.avatar}
+                          username={firstStatus.user.username}
+                          hasStatus={true}
+                          size={52}
+                        />
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold text-text-primary">
+                            {firstStatus.user.fullName || firstStatus.user.username}
+                          </p>
+                          <p className="text-sm text-text-secondary">
+                            {new Date(firstStatus.createdAt).toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            presence?.isOnline ? 'bg-brand-primary' : 'bg-text-secondary/50'
+                          }`}
+                        />
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
