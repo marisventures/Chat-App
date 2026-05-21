@@ -32,7 +32,7 @@ const allowedOrigins = [
 // Socket.io setup with CORS
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: '*',
     methods: ['GET', 'POST'],
     credentials: true
   }
@@ -49,8 +49,8 @@ app.use(cors({
     if (allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
-      console.warn('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // Allow unknown origins (e.g. Render deploy URL) — API is JWT-protected
+      callback(null, origin);
     }
   },
   credentials: true
