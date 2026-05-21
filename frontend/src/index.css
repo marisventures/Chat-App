@@ -90,41 +90,6 @@
   @apply max-w-[85%] md:max-w-md px-3 py-2 rounded-lg text-[14.2px] shadow-sm relative;
 }
 
-@media (max-width: 640px) {
-  .chat-bubble {
-    max-width: 88%;
-  }
-  
-  .message-input-area {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
-  
-  .message-input-area input::placeholder {
-    font-size: 13px;
-  }
-  
-  .chat-sidebar-header {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
-  
-  .chat-list-item {
-    padding-top: 8px !important;
-    padding-bottom: 8px !important;
-  }
-  
-  .message-bubble-sent {
-    max-width: 85%;
-  }
-  
-  .message-bubble-received {
-    max-width: 85%;
-  }
-}
-
 .chat-bubble-sent {
   @apply self-end rounded-tr-none;
   background-color: var(--color-bubble-sent);
@@ -327,55 +292,17 @@ div.hover\:bg-header-bg:hover {
 /* Responsive */
 @media (max-width: 640px) {
   .chat-sidebar {
-    position: fixed;
-    z-index: 60;
+    position: absolute;
+    z-index: 40;
     height: 100%;
-    left: 0;
-    top: 0;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    width: 320px;
+    display: none;
   }
   
   .chat-sidebar.show {
-    transform: translateX(0);
-  }
-  
-  .chat-sidebar-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 50;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-  }
-  
-  .chat-sidebar-overlay.show {
-    opacity: 1;
-    visibility: visible;
+    display: flex;
   }
   
   .chat-main {
     width: 100%;
-  }
-  
-  .chat-header-mobile {
-    display: flex;
-  }
-  
-  .chat-bubble {
-    max-width: 88%;
-  }
-}
-
-@media (max-width: 400px) {
-  .chat-sidebar {
-    width: 100%;
-    max-width: 280px;
-  }
-  
-  .chat-bubble {
-    max-width: 92%;
   }
 }

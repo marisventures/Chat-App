@@ -20,21 +20,15 @@ import {
   Download,
   Moon,
   Sun,
-  Camera,
-  Menu,
-  Trash2,
-  Loader2
+  Camera
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePresence } from '../contexts/PresenceContext';
-import { useStatus } from '../contexts/StatusContext';
-import { api, API_BASE_URL, SERVER_URL } from '../services/api';
+import { api, SERVER_URL } from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
-import StatusCircle from './StatusCircle';
-import StatusModal from './StatusModal';
 
 interface Chat {
   _id: string;
@@ -65,7 +59,6 @@ interface Message {
   chat: string;
   createdAt: string;
   readBy: string[];
-  status?: string;
   isVoice?: boolean;
   voiceData?: string;
   voiceDuration?: number;
@@ -87,11 +80,10 @@ interface User {
 }
 
 export default function ChatLayout() {
-    const { user, logout, updateUser } = useAuth();
-    const { theme, toggleTheme } = useTheme();
-    const { users, formatLastSeen, updateUserPresence } = usePresence();
-    const { myStatuses, contactsStatuses, fetchMyStatuses, fetchContactsStatuses } = useStatus();
-    const [activeChat, setActiveChat] = useState<Chat | null>(null);
+   const { user, logout, updateUser } = useAuth();
+   const { theme, toggleTheme } = useTheme();
+   const { users, formatLastSeen, updateUserPresence } = usePresence();
+   const [activeChat, setActiveChat] = useState<Chat | null>(null);
   const [chats, setChats] = useState<Chat[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -101,71 +93,60 @@ export default function ChatLayout() {
    const messagesEndRef = useRef<HTMLDivElement>(null);
    const activeChatRef = useRef<Chat | null>(null);
    const [socket, setSocket] = useState<Socket | null>(null);
-const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
-  // New chat modal state
-  const [showNewChatModal, setShowNewChatModal] = useState(false);
-  const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<User[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  // Avatar upload state
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
-  // Voice recording state
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingDuration, setRecordingDuration] = useState(0);
-  const recordingDurationRef = useRef(0);
-  const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
-  const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+   // New chat modal state
+   const [showNewChatModal, setShowNewChatModal] = useState(false);
+   const [userSearchQuery, setUserSearchQuery] = useState('');
+   const [searchResults, setSearchResults] = useState<User[]>([]);
+   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // File attachment state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
-  const [fileUrl, setFileUrl] = useState<string | null>(null);
-  const [publicId, setPublicId] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-const fileInputRef = useRef<HTMLInputElement>(null);
+    // Voice recording state
+    const [isRecording, setIsRecording] = useState(false);
+    const [recordingDuration, setRecordingDuration] = useState(0);
+    const recordingDurationRef = useRef(0);
+    const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+    const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioChunksRef = useRef<Blob[]>([]);
+    const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
-  // Status modal state
-  const [showStatusModal, setShowStatusModal] = useState(false);
+    // File attachment state
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Three-dots menu state
-  const [showThreeDotsMenu, setShowThreeDotsMenu] = useState(false);
-  const threeDotsRef = useRef<HTMLDivElement>(null);
-
-  // Delete chat state
-  const [isDeletingChat, setIsDeletingChat] = useState(false);
-
-  // Fetch chats on mount
-  useEffect(() => {
-      fetchChats();
-      fetchMyStatuses();
-      fetchContactsStatuses();
-    }, []);
-
-   // Connect to socket and setup presence tracking
+   // Fetch chats on mount
    useEffect(() => {
-     if (user) {
-       const token = localStorage.getItem('token');
-       const newSocket = io(SERVER_URL, {
-         auth: { token }
-       });
-       setSocket(newSocket);
+     fetchChats();
+   }, []);
 
-       newSocket.on('connect', () => {
-         console.log('✅ Socket connected');
-       });
+// Connect to socket and setup presence tracking
+    useEffect(() => {
+      if (user) {
+        const token = localStorage.getItem('token');
+        const newSocket = io(SERVER_URL, {
+          auth: { token }
+        });
+        setSocket(newSocket);
 
-       // Handle ping-pong for heartbeat
-       newSocket.on('ping', () => {
-         newSocket.emit('heartbeat');
-       });
+newSocket.on('connect', () => {
+          console.log('Socket connected');
+        });
+
+        // Handle ping-pong for heartbeat
+        newSocket.on('ping', () => {
+          newSocket.emit('heartbeat');
+        });
 
        newSocket.on('receive-message', (message: Message) => {
-         console.log('📨 Message received:', message._id, 'from:', message.sender._id, 'chat:', message.chat);
          // Normalize sender _id to string
          const normalizedMessage = {
            ...message,
@@ -173,100 +154,46 @@ const fileInputRef = useRef<HTMLInputElement>(null);
              ...message.sender,
              _id: String(message.sender._id)
            },
-           readBy: message.readBy || [],
-           status: message.status || 'sent'
+           readBy: message.readBy || []
          };
 
          const isCurrentUserSender = String(normalizedMessage.sender._id) === String(user?.id);
          const isActiveChat = normalizedMessage.chat === activeChatRef.current?._id;
          const currentUserId = String(user?.id);
-         const token = localStorage.getItem('token');
 
-         // Handle delivery and read receipts for messages from others
-         if (!isCurrentUserSender) {
-           if (isActiveChat) {
-             // Chat is open - mark as read immediately
-             if (normalizedMessage.status !== 'read') {
-               console.log('📖 Marking message as read (active chat):', normalizedMessage._id);
-               api.put(`/messages/${normalizedMessage._id}/status`, { status: 'read' }, token).catch((err: any) => console.error('Read error:', err));
-               normalizedMessage.status = 'read';
-               if (!normalizedMessage.readBy.map(String).includes(currentUserId)) {
-                 normalizedMessage.readBy = [...normalizedMessage.readBy, currentUserId];
-               }
-             }
-           } else {
-             // Chat is closed - mark as delivered
-             if (normalizedMessage.status === 'sent') {
-               console.log('📤 Marking message as delivered (background):', normalizedMessage._id);
-               api.put(`/messages/${normalizedMessage._id}/status`, { status: 'delivered' }, token).catch((err: any) => console.error('Delivered error:', err));
-               normalizedMessage.status = 'delivered';
-             }
+         // Automatically mark as read if viewing the chat and add to readBy locally
+         if (!isCurrentUserSender && isActiveChat) {
+           const token = localStorage.getItem('token');
+           if (!normalizedMessage.readBy.map(String).includes(currentUserId)) {
+             api.put(`/messages/${normalizedMessage._id}/status`, {}, token).catch(() => {});
+             normalizedMessage.readBy = [...normalizedMessage.readBy, currentUserId];
            }
          }
 
          // Show notification if message from other user and tab is not focused
          if (!isCurrentUserSender && !isActiveChat) {
-           const senderName = normalizedMessage.sender.fullName || normalizedMessage.sender.username;
-           const notificationBody = normalizedMessage.content 
-             ? normalizedMessage.content
-             : normalizedMessage.isVoice
-               ? 'Voice message'
-               : normalizedMessage.isFile
-                 ? `File: ${normalizedMessage.fileName || 'Attachment'}`
-                 : 'New message';
-           showDesktopNotification(`New message from ${senderName}`, notificationBody, normalizedMessage.sender.avatar);
-         }
+          const senderName = normalizedMessage.sender.fullName || normalizedMessage.sender.username;
+          const notificationBody = normalizedMessage.content 
+            ? normalizedMessage.content
+            : normalizedMessage.isVoice
+              ? 'Voice message'
+              : normalizedMessage.isFile
+                ? `File: ${normalizedMessage.fileName || 'Attachment'}`
+                : 'New message';
+          showDesktopNotification(`New message from ${senderName}`, notificationBody, normalizedMessage.sender.avatar);
+        }
 
-         // If this message is for the active chat, add it to messages
-         if (normalizedMessage.chat === activeChatRef.current?._id) {
-           setMessages(prev => {
-             // Remove any temporary message matching this real message (sender, chat, content)
-             const filtered = prev.filter(m => {
-               if (!m._id.startsWith('temp-')) return true;
-               const temp: any = m;
-               const senderMatch = String(temp.sender?._id) === String(normalizedMessage.sender._id);
-               const chatMatch = temp.chat === normalizedMessage.chat;
-               if (!senderMatch || !chatMatch) return true;
-               // Match text messages
-               if (normalizedMessage.content && temp.content === normalizedMessage.content) return false;
-               // Match voice messages
-               if (normalizedMessage.isVoice && temp.isVoice && temp.voiceDuration === normalizedMessage.voiceDuration) return false;
-               // Match file messages
-               if (normalizedMessage.isFile && temp.isFile && 
-                   temp.fileName === normalizedMessage.fileName && 
-                   temp.fileSize === normalizedMessage.fileSize) return false;
-               return true;
-             });
-             // Avoid adding duplicate real message if already exists
-             if (filtered.find(m => m._id === normalizedMessage._id)) return filtered;
-             return [...filtered, normalizedMessage];
-           });
-         }
-         // Always refresh chats list to update latest message previews
-         fetchChats();
-       });
+        // If this message is for the active chat, add it to messages
+        if (normalizedMessage.chat === activeChatRef.current?._id) {
+          setMessages(prev => [...prev, normalizedMessage]);
+        }
+        // Always refresh chats list to update latest message previews
+        fetchChats();
+      });
 
-       // Listen for status updates (read receipts)
-       newSocket.on('message-status-updated', ({ messageId, status, readBy }: any) => {
-         console.log('✉️ Status update received:', { messageId, status, readBy });
-         setMessages(prev => prev.map(msg => 
-           msg._id === messageId 
-             ? { ...msg, status, readBy: readBy || msg.readBy }
-             : msg
-         ));
-       });
-
-       return () => newSocket.close();
-     }
-   }, [user]);
-
-   // Join chat room when active chat changes
-   useEffect(() => {
-     if (socket && activeChat) {
-       socket.emit('join chat', activeChat._id);
-       console.log('🚪 Joined chat room:', activeChat._id);
-     }
-   }, [socket, activeChat]);
+      return () => newSocket.close();
+    }
+  }, [user]);
 
    // Cleanup recording resources and file preview on unmount
    useEffect(() => {
@@ -288,60 +215,35 @@ const fileInputRef = useRef<HTMLInputElement>(null);
      };
    }, [isRecording, recordedAudioUrl, filePreviewUrl]);
 
-// Close emoji picker when clicking outside
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
-          setShowEmojiPicker(false);
-        }
-      };
+   // Close emoji picker when clicking outside
+   useEffect(() => {
+     const handleClickOutside = (event: MouseEvent) => {
+       if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+         setShowEmojiPicker(false);
+       }
+     };
 
-      if (showEmojiPicker) {
-        document.addEventListener('mousedown', handleClickOutside);
-      }
+     if (showEmojiPicker) {
+       document.addEventListener('mousedown', handleClickOutside);
+     }
 
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }, [showEmojiPicker]);
-
-    // Close three-dots menu when clicking outside
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (threeDotsRef.current && !threeDotsRef.current.contains(event.target as Node)) {
-          setShowThreeDotsMenu(false);
-        }
-      };
-
-      if (showThreeDotsMenu) {
-        document.addEventListener('mousedown', handleClickOutside);
-      }
-
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }, [showThreeDotsMenu]);
+     return () => {
+       document.removeEventListener('mousedown', handleClickOutside);
+     };
+   }, [showEmojiPicker]);
 
    const handleEmojiPickerToggle = () => {
      setShowEmojiPicker(prev => !prev);
    };
 
-   // Join chat room when active chat changes
-   useEffect(() => {
-     if (socket && activeChat) {
-       socket.emit('join chat', activeChat._id);
-       console.log('Joined chat room:', activeChat._id);
-     }
-   }, [socket, activeChat]);
+  // Load messages when active chat changes
+  useEffect(() => {
+    if (activeChat) {
+      fetchMessages(activeChat._id);
+    }
+  }, [activeChat]);
 
-    // Load messages when active chat changes
-    useEffect(() => {
-      if (activeChat) {
-        fetchMessages(activeChat._id);
-      }
-    }, [activeChat]);
-
-    // Keep activeChat ref updated for socket handler
+  // Keep activeChat ref updated for socket handler
   useEffect(() => {
     activeChatRef.current = activeChat;
   }, [activeChat]);
@@ -468,103 +370,78 @@ new Notification(title, {
     }
   };
 
-   const fetchMessages = async (chatId: string) => {
-     console.log('📥 Fetching messages for chat:', chatId);
-      setLoadingMessages(true);
-      try {
-        const data = await api.get<Message[]>(`/messages/${chatId}`, localStorage.getItem('token'));
-        console.log('✅ Messages fetched:', data.length);
-       
-       const normalizedData = (data as any[]).map((msg: any) => ({
-         ...msg,
-         sender: {
-           ...msg.sender,
-           _id: String(msg.sender._id)
-         },
-         status: msg.status || 'sent'
-       }));
-       
-       console.log('Normalized messages:', normalizedData);
-       
-       // Mark messages as read after loading them
-       const token = localStorage.getItem('token');
-       const currentUserId = String(user?.id);
-       const unreadMessages = normalizedData.filter((msg: any) => 
-         String(msg.sender._id) !== currentUserId && !(msg.readBy || []).map(String).includes(currentUserId)
-       );
-       
-       console.log('Unread messages to mark as read:', unreadMessages.length);
-       
-       // Mark all unread messages as read in parallel
-       if (unreadMessages.length > 0) {
-         await Promise.allSettled(
-           unreadMessages.map((msg: any) => 
-             api.put(`/messages/${msg._id}/status`, { status: 'read' }, token)
-           )
-         );
-         // Update local state with read receipts
-         const updatedData = normalizedData.map((msg: any) => {
-           const readByArray = msg.readBy || [];
-           if (String(msg.sender._id) !== currentUserId && !readByArray.map(String).includes(currentUserId)) {
-             return { 
-               ...msg, 
-               status: 'read',
-               readBy: [...readByArray, currentUserId] 
-             };
-           }
-           // If already sent by current user but others have read it, update status
-           if (String(msg.sender._id) === currentUserId && msg.status === 'delivered') {
-             return { ...msg, status: 'read' };
-           }
-           return msg;
-         });
-         setMessages(updatedData);
-       } else {
-         setMessages(normalizedData);
-       }
+  const fetchMessages = async (chatId: string) => {
+    setLoadingMessages(true);
+    try {
+      const data = await api.get(`/messages/${chatId}`, localStorage.getItem('token'));
+      const normalizedData = (data as any[]).map((msg: any) => ({
+        ...msg,
+        sender: {
+          ...msg.sender,
+          _id: String(msg.sender._id)
+        }
+      }));
+      
+      // Mark messages as read after loading them
+      const token = localStorage.getItem('token');
+      const currentUserId = String(user?.id);
+      const unreadMessages = normalizedData.filter((msg: any) => 
+        String(msg.sender._id) !== currentUserId && !(msg.readBy || []).map(String).includes(currentUserId)
+      );
+      
+      // Mark all unread messages as read in parallel
+      if (unreadMessages.length > 0) {
+        await Promise.allSettled(
+          unreadMessages.map((msg: any) => 
+            api.put(`/messages/${msg._id}/status`, {}, token)
+          )
+        );
+        // Update local state with read receipts - add current user to readBy arrays
+        const updatedData = normalizedData.map((msg: any) => {
+          const readByArray = msg.readBy || [];
+          if (String(msg.sender._id) !== currentUserId && !readByArray.map(String).includes(currentUserId)) {
+            return { ...msg, readBy: [...readByArray, currentUserId] };
+          }
+          return msg;
+        });
+        setMessages(updatedData);
+        return;
+      }
+      
+      setMessages(normalizedData);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoadingMessages(false);
+    }
+  };
+
+   const handleSendMessage = async () => {
+     if (!inputText.trim() || !activeChat) return;
+
+     const tempMessage: Message = {
+       _id: `temp-${Date.now()}`,
+       content: inputText,
+       sender: { _id: user!.id, username: user!.username, fullName: user!.fullName, avatar: user!.avatar },
+       chat: activeChat._id,
+       createdAt: new Date().toISOString(),
+       readBy: [user!.id]
+     };
+
+     setMessages(prev => [...prev, tempMessage]);
+     const messageContent = inputText;
+     setInputText('');
+
+     try {
+       await api.post('/messages', { content: messageContent, chatId: activeChat._id }, localStorage.getItem('token'));
+       fetchChats();
      } catch (error) {
-       console.error('❌ Error fetching messages:', error);
-       setMessages([]);
-     } finally {
-       setLoadingMessages(false);
-       console.log('Loading messages state set to false');
+       console.error('Error sending message:', error);
+       setMessages(prev => prev.filter(m => m._id !== tempMessage._id));
      }
    };
 
-    const handleSendMessage = async () => {
-      if (!inputText.trim() || !activeChat) return;
-
-      const tempMessageId = `temp-${Date.now()}`;
-      const tempMessage: Message = {
-        _id: tempMessageId,
-        content: inputText,
-        sender: { _id: user!.id, username: user!.username, fullName: user!.fullName, avatar: user!.avatar },
-        chat: activeChat._id,
-        createdAt: new Date().toISOString(),
-        readBy: [user!.id],
-        status: 'sent'
-      };
-
-      setMessages(prev => [...prev, tempMessage]);
-      const messageContent = inputText;
-      setInputText('');
-
-      try {
-        const response = await api.post('/messages', { content: messageContent, chatId: activeChat._id }, localStorage.getItem('token'));
-        // Replace temp with real message from server
-        const realMessage = response as any;
-        setMessages(prev => {
-          const filtered = prev.filter(m => m._id !== tempMessageId && m._id !== realMessage._id);
-          return [...filtered, realMessage];
-        });
-        fetchChats();
-      } catch (error) {
-        console.error('Error sending message:', error);
-        setMessages(prev => prev.filter(m => m._id !== tempMessageId));
-      }
-     };
-
-     const startRecording = async () => {
+    const startRecording = async () => {
       // Check if MediaRecorder is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert('Audio recording is not supported in this browser. Please use Chrome, Firefox, or Safari.');
@@ -701,111 +578,86 @@ new Notification(title, {
       });
     };
 
-// File attachment functions
-    const handleFileSelect = async (event: ChangeEvent<HTMLInputElement>) => {
+    // File attachment functions
+    const handleFileSelect = (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024;
+      // Validate file size (max 5MB - to stay under MongoDB 16MB document limit with base64 overhead)
+      const maxSize = 5 * 1024 * 1024; // 5MB
       if (file.size > maxSize) {
         alert('File too large. Maximum size is 5MB.');
         return;
       }
 
       setSelectedFile(file);
+
+      // Create preview URL for images
+      if (file.type.startsWith('image/')) {
+        const preview = URL.createObjectURL(file);
+        setFilePreviewUrl(preview);
+      } else {
+        setFilePreviewUrl(null);
+      }
+    };
+
+    const sendFileMessage = async () => {
+      if (!selectedFile || !activeChat) return;
+
       setIsUploading(true);
+      let tempMessageId: string | null = null;
 
-      // Upload to Cloudinary
       try {
-        const formData = new FormData();
-        formData.append('file', file);
+        // Convert file to base64
+        const base64File = await blobToBase64(selectedFile);
 
-        const cloudUploadResponse = await api.post<{ fileUrl: string; publicId: string }>('/messages/upload', formData, localStorage.getItem('token'));
+        // Create temporary file message for optimistic UI
+        const tempMessage: Message = {
+          _id: `temp-${Date.now()}`,
+          sender: { _id: user!.id, username: user!.username, fullName: user!.fullName, avatar: user!.avatar },
+          chat: activeChat._id,
+          createdAt: new Date().toISOString(),
+          readBy: [user!.id],
+          isFile: true,
+          fileData: base64File,
+          fileName: selectedFile.name,
+          fileType: selectedFile.type,
+          fileSize: selectedFile.size
+        };
 
-        setFileUrl(cloudUploadResponse.fileUrl);
-        setPublicId(cloudUploadResponse.publicId);
-        setFilePreviewUrl(file.type.startsWith('image/') ? cloudUploadResponse.fileUrl : null);
+        tempMessageId = tempMessage._id;
+        setMessages(prev => [...prev, tempMessage]);
+
+        // Send to backend
+        await api.post('/messages', {
+          chatId: activeChat._id,
+          isFile: true,
+          fileData: base64File,
+          fileName: selectedFile.name,
+          fileType: selectedFile.type,
+          fileSize: selectedFile.size
+        }, localStorage.getItem('token'));
+
+        fetchChats();
+
+        // Cleanup
+        setSelectedFile(null);
+        setFilePreviewUrl(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       } catch (error) {
-        console.error('Error uploading file to Cloudinary:', error);
-        alert('Failed to upload file. Please try again.');
+        console.error('Error sending file:', error);
+        alert('Failed to send file. Please try again.');
+        if (tempMessageId) {
+          setMessages(prev => prev.filter(m => m._id !== tempMessageId));
+        }
         setSelectedFile(null);
         setFilePreviewUrl(null);
       } finally {
         setIsUploading(false);
       }
     };
-
-      const sendFileMessage = async () => {
-        if ((!selectedFile && !fileUrl) || !activeChat) return;
-
-        setIsUploading(true);
-        let tempMessageId: string | null = null;
-
-        try {
-          const fileName = selectedFile?.name || fileUrl?.split('/').pop() || 'file';
-          const fileType = selectedFile?.type || 'application/octet-stream';
-          const fileSize = selectedFile?.size || 0;
-
-          // Create temporary file message for optimistic UI
-          const tempMessage: Message = {
-            _id: `temp-${Date.now()}`,
-            sender: { _id: user!.id, username: user!.username, fullName: user!.fullName, avatar: user!.avatar },
-            chat: activeChat._id,
-            createdAt: new Date().toISOString(),
-            readBy: [user!.id],
-            status: 'sent',
-            isFile: true,
-            fileName,
-            fileType,
-            fileSize
-          };
-
-          tempMessageId = tempMessage._id;
-          setMessages(prev => [...prev, tempMessage]);
-
-          // Send to backend
-          const response = await api.post('/messages', {
-            chatId: activeChat._id,
-            isFile: true,
-            fileUrl: fileUrl || '',
-            publicId: publicId || '',
-            fileName,
-            fileType,
-            fileSize
-          }, localStorage.getItem('token'));
-
-          // Replace temp with real message
-          const realMessage = response as any;
-          setMessages(prev => {
-            const filtered = prev.filter(m => m._id !== tempMessageId && m._id !== realMessage._id);
-            return [...filtered, realMessage];
-          });
-
-          fetchChats();
-
-          // Cleanup
-          setSelectedFile(null);
-          setFileUrl(null);
-          setPublicId(null);
-          setFilePreviewUrl(null);
-          if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-          }
-        } catch (error) {
-          console.error('Error sending file:', error);
-          alert('Failed to send file. Please try again.');
-          if (tempMessageId) {
-            setMessages(prev => prev.filter(m => m._id !== tempMessageId));
-          }
-          setSelectedFile(null);
-          setFileUrl(null);
-          setPublicId(null);
-          setFilePreviewUrl(null);
-        } finally {
-          setIsUploading(false);
-        }
-      };
 
     const cancelFileAttachment = () => {
       setSelectedFile(null);
@@ -821,18 +673,72 @@ new Notification(title, {
      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
    };
 
-const getFileIcon = (fileType: string) => {
-      if (fileType.startsWith('image/')) return '🖼️';
-      if (fileType.startsWith('video/')) return '🎬';
-      if (fileType.startsWith('audio/')) return '🎵';
-      if (fileType.includes('pdf')) return '📄';
-      if (fileType.includes('word') || fileType.includes('document')) return '📝';
-      if (fileType.includes('sheet') || fileType.includes('excel')) return '📊';
-      if (fileType.includes('zip') || fileType.includes('compressed')) return '🗜️';
-      return '📎';
-    };
+   const getFileIcon = (fileType: string) => {
+     if (fileType.startsWith('image/')) return '🖼️';
+     if (fileType.startsWith('video/')) return '🎬';
+     if (fileType.startsWith('audio/')) return '🎵';
+     if (fileType.includes('pdf')) return '📄';
+     if (fileType.includes('word') || fileType.includes('document')) return '📝';
+     if (fileType.includes('sheet') || fileType.includes('excel')) return '📊';
+     if (fileType.includes('zip') || fileType.includes('compressed')) return '🗜️';
+     return '📎';
+   };
 
-    const stopRecording = () => {
+   // Avatar upload handler
+   const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+     const file = event.target.files?.[0];
+     if (!file) return;
+
+     // Validate file type
+     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+     if (!allowedTypes.includes(file.type)) {
+       alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+       return;
+     }
+
+     // Validate file size (max 5MB)
+     const maxSize = 5 * 1024 * 1024; // 5MB
+     if (file.size > maxSize) {
+       alert('File too large. Maximum size is 5MB.');
+       return;
+     }
+
+     setAvatarUploading(true);
+
+     try {
+       const formData = new FormData();
+       formData.append('avatar', file);
+
+       const response = await fetch(`${SERVER_URL}/api/users/avatar`, {
+         method: 'PUT',
+         headers: {
+           'Authorization': `Bearer ${localStorage.getItem('token')}`
+         },
+         body: formData
+       });
+
+       if (!response.ok) {
+         throw new Error('Failed to upload avatar');
+       }
+
+       const data = await response.json();
+
+       // Update user in AuthContext
+       updateUser({ avatar: data.avatar });
+       
+     } catch (error) {
+       console.error('Error uploading avatar:', error);
+       alert('Failed to upload avatar. Please try again.');
+     } finally {
+       setAvatarUploading(false);
+       // Reset input so same file can be selected again
+       if (avatarInputRef.current) {
+         avatarInputRef.current.value = '';
+       }
+     }
+   };
+
+   const stopRecording = () => {
      if (mediaRecorderRef.current && isRecording) {
        mediaRecorderRef.current.stop();
        setIsRecording(false);
@@ -849,53 +755,46 @@ const getFileIcon = (fileType: string) => {
      setRecordingDuration(0);
    };
 
-     const sendVoiceMessage = async (voiceData: string, duration: number, mimeType: string = 'audio/webm') => {
-       if (!activeChat || !voiceData) return;
+    const sendVoiceMessage = async (voiceData: string, duration: number, mimeType: string = 'audio/webm') => {
+      if (!activeChat || !voiceData) return;
 
-       const tempMessageId = `temp-${Date.now()}`;
-       const tempMessage: Message = {
-         _id: tempMessageId,
-         sender: { _id: user!.id, username: user!.username, fullName: user!.fullName, avatar: user!.avatar },
-         chat: activeChat._id,
-         createdAt: new Date().toISOString(),
-         readBy: [user!.id],
-         status: 'sent',
-         isVoice: true,
-         voiceData: `data:${mimeType};base64,${voiceData}`,
-         voiceDuration: duration,
-         voiceMimeType: mimeType
-       };
-
-       setMessages(prev => [...prev, tempMessage]);
-
-       try {
-         const response = await api.post('/messages', {
-           chatId: activeChat._id,
-           isVoice: true,
-           voiceData: voiceData,
-           voiceDuration: duration,
-           voiceMimeType: mimeType
-         }, localStorage.getItem('token'));
-         // Replace temp with real message
-         const realMessage = response as any;
-         setMessages(prev => {
-           const filtered = prev.filter(m => m._id !== tempMessageId && m._id !== realMessage._id);
-           return [...filtered, realMessage];
-         });
-         fetchChats();
-       } catch (error) {
-         console.error('Error sending voice message:', error);
-         setMessages(prev => prev.filter(m => m._id !== tempMessageId));
-       } finally {
-         setRecordedAudioUrl(null);
-         setRecordedAudioBlob(null);
-         setRecordingDuration(0);
-       }
+      // Create temporary voice message for optimistic UI
+      const tempMessage: Message = {
+        _id: `temp-${Date.now()}`,
+        sender: { _id: user!.id, username: user!.username, fullName: user!.fullName, avatar: user!.avatar },
+        chat: activeChat._id,
+        createdAt: new Date().toISOString(),
+        readBy: [user!.id],
+        isVoice: true,
+        voiceData: `data:${mimeType};base64,${voiceData}`,
+        voiceDuration: duration,
+        voiceMimeType: mimeType
       };
 
-    const discardRecording = () => {
-      cancelRecording();
+      setMessages(prev => [...prev, tempMessage]);
+
+      try {
+        await api.post('/messages', {
+          chatId: activeChat._id,
+          isVoice: true,
+          voiceData: voiceData,
+          voiceDuration: duration,
+          voiceMimeType: mimeType
+        }, localStorage.getItem('token'));
+        fetchChats();
+      } catch (error) {
+        console.error('Error sending voice message:', error);
+        setMessages(prev => prev.filter(m => m._id !== tempMessage._id));
+      } finally {
+        setRecordedAudioUrl(null);
+        setRecordedAudioBlob(null);
+        setRecordingDuration(0);
+      }
     };
+
+   const discardRecording = () => {
+     cancelRecording();
+   };
 
   const startNewChat = async (selectedUser: User) => {
     try {
@@ -932,27 +831,6 @@ const getFileIcon = (fileType: string) => {
     }
   };
 
-  const deleteChat = async () => {
-    if (!activeChat || isDeletingChat) return;
-
-    if (!window.confirm(`Are you sure you want to delete the chat with "${getChatDisplayName(activeChat)}"? This action cannot be undone.`)) {
-      return;
-    }
-
-    setIsDeletingChat(true);
-    try {
-      await api.delete(`/chat/${activeChat._id}`, localStorage.getItem('token'));
-      setChats(prev => prev.filter(c => c._id !== activeChat._id));
-      setActiveChat(null);
-      setShowThreeDotsMenu(false);
-    } catch (error) {
-      console.error('Error deleting chat:', error);
-      alert('Failed to delete chat. Please try again.');
-    } finally {
-      setIsDeletingChat(false);
-    }
-  };
-
   const getChatDisplayName = (chat: Chat) => {
     if (chat.isGroupChat) {
       return chat.chatName || 'Group Chat';
@@ -975,31 +853,32 @@ const getFileIcon = (fileType: string) => {
 
   return (
     <div className="chat-container">
-      {/* Mobile overlay */}
-      {activeChat && (
-        <div
-          className={`chat-sidebar-overlay md:hidden show`}
-          onClick={() => setActiveChat(null)}
-        />
-      )}
-
-{/* Sidebar - Chat List */}
+      {/* Sidebar - Chat List */}
       <div className={`chat-sidebar ${activeChat ? 'hidden md:flex' : 'flex'}`}>
         {/* Sidebar Header */}
         <div className="p-4 bg-header-bg flex items-center justify-between border-b border-border">
-          <div className="flex items-center gap-2">
-                <StatusCircle
-                  src={user?.avatar}
-                  username={user?.username}
-                  hasStatus={myStatuses.length > 0}
-                  isOwn={true}
-                  size={40}
-                  onClick={() => setShowStatusModal(true)}
-                />
-                <span className="font-semibold text-text-primary text-sm">
-                  {user?.fullName || user?.username}
-                </span>
-              </div>
+          <div className="flex items-center gap-3">
+            <div 
+              className={`relative w-10 h-10 rounded-full bg-slate-700 overflow-hidden flex items-center justify-center cursor-pointer group ${avatarUploading ? 'opacity-50 pointer-events-none' : ''}`} 
+              onClick={() => !avatarUploading && avatarInputRef.current?.click()}
+            >
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+              ) : (
+                <User className="text-text-secondary" size={20} />
+              )}
+              {avatarUploading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : (
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <Camera className="text-white" size={18} />
+                </div>
+              )}
+            </div>
+            <span className="font-semibold text-text-primary text-sm">{user?.fullName || user?.username}</span>
+          </div>
           <div className="flex gap-5 text-text-secondary">
             <UsersIcon
               size={22}
@@ -1114,52 +993,52 @@ const getFileIcon = (fileType: string) => {
                   alt=""
                   referrerPolicy="no-referrer"
                 />
-                <div>
-                  <h2 className="text-[15.5px] font-bold text-text-primary leading-tight">{getChatDisplayName(activeChat)}</h2>
-                  <p className="text-[11px] text-text-secondary">
-                    {(() => {
-                      const otherUser = getOtherUser(activeChat);
-                      const presence = otherUser ? users.get(String(otherUser._id)) : null;
-                      // Check both presence Map and user's online status from chat data
-                      const isOnline = presence?.isOnline ?? otherUser?.online ?? false;
-                      if (isOnline) {
-                        return (
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 bg-brand-primary rounded-full"></span>
-                            Online
-                          </span>
-                        );
-                      }
-                      return `Last seen ${formatLastSeen(presence?.lastSeen || otherUser?.lastSeen)}`;
-                    })()}
-                  </p>
-                </div>
+<div>
+                    <h2 className="text-[15.5px] font-bold text-text-primary leading-tight">{getChatDisplayName(activeChat)}</h2>
+                    <p className="text-[11px] text-text-secondary">
+                      {(() => {
+                        const otherUser = getOtherUser(activeChat);
+                        const presence = otherUser ? users.get(String(otherUser._id)) : null;
+                        // Check both presence Map and user's online status from chat data
+                        const isOnline = presence?.isOnline ?? otherUser?.online ?? false;
+                        if (isOnline) {
+                          return (
+                            <span className="flex items-center gap-1">
+                              <span className="w-2 h-2 bg-brand-primary rounded-full"></span>
+                              Online
+                            </span>
+                          );
+                        }
+                        return `Last seen ${formatLastSeen(presence?.lastSeen || otherUser?.lastSeen)}`;
+                      })()}
+                    </p>
+                  </div>
               </div>
-              <div className="flex gap-4 text-text-secondary">
-                <motion.button
-                  onClick={toggleTheme}
-                  className="p-2 hover:text-brand-primary hover:bg-brand-primary/10 rounded-full transition-all"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                >
-                  <motion.div
-                    initial={false}
-                    animate={{ rotate: theme === 'dark' ? 0 : 180 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
-                  </motion.div>
-                </motion.button>
-                <Video size={20} className="cursor-pointer hover:text-brand-primary transition-colors" />
-                <Phone size={18} className="cursor-pointer hover:text-brand-primary transition-colors" />
-                <MoreVertical size={20} className="cursor-pointer hover:text-brand-primary transition-colors" />
-              </div>
+               <div className="flex gap-4 text-text-secondary">
+                 <motion.button
+                   onClick={toggleTheme}
+                   className="p-2 hover:text-brand-primary hover:bg-brand-primary/10 rounded-full transition-all"
+                   whileHover={{ scale: 1.1 }}
+                   whileTap={{ scale: 0.95 }}
+                   title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+                 >
+                   <motion.div
+                     initial={false}
+                     animate={{ rotate: theme === 'dark' ? 0 : 180 }}
+                     transition={{ duration: 0.3 }}
+                   >
+                     {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                   </motion.div>
+                 </motion.button>
+                 <Video size={20} className="cursor-pointer hover:text-brand-primary transition-colors" />
+                 <Phone size={18} className="cursor-pointer hover:text-brand-primary transition-colors" />
+                 <MoreVertical size={20} className="cursor-pointer hover:text-brand-primary transition-colors" />
+               </div>
             </header>
 
-            {/* Message Area */}
-            <div className="flex-1 overflow-y-auto p-4 md:px-12 space-y-1 bg-chat-bg relative">
-              <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-fixed bg-repeat invert" />
+             {/* Message Area */}
+             <div className="flex-1 overflow-y-auto p-4 md:px-12 space-y-1 bg-chat-bg relative">
+               <div className="absolute inset-0 opacity-[0.06] pointer-events-none bg-[url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')] bg-fixed bg-repeat invert" />
 
               <div className="relative z-10 space-y-1">
                 {loadingMessages ? (
@@ -1228,24 +1107,24 @@ const getFileIcon = (fileType: string) => {
                              ) : (
                                <p className="whitespace-pre-wrap">{msg.content}</p>
                              )}
- <div className={`flex items-center gap-1 mt-1 justify-end translate-x-1 border-t-0 p-0`}>
-                               <span className="text-[10px] text-text-secondary font-medium uppercase">
-                                 {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                               </span>
-                               {isSent && (
-                                 <div className={
-                                   msg.status === 'read' ? 'text-blue-500' : 
-                                   msg.status === 'delivered' ? 'text-gray-500' : 'text-gray-400'
-                                 }>
-                                   {(() => {
-                                     // Single check (sent), double check (delivered/read)
-                                     return msg.status === 'sent' 
-                                       ? <Check size={13} />
-                                       : <CheckCheck size={13} />;
-                                   })()}
-                                 </div>
-                               )}
-                             </div>
+<div className={`flex items-center gap-1 mt-1 justify-end translate-x-1 border-t-0 p-0`}>
+                              <span className="text-[10px] text-text-secondary font-medium uppercase">
+                                {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              {isSent && (
+                                <div className="text-text-secondary">
+                                  {(() => {
+                                    // Check if message is read by other chat participants
+                                    const otherParticipants = activeChatRef.current?.users
+                                      .filter((u: any) => String(u._id) !== String(user?.id))
+                                      .map((u: any) => String(u._id)) || [];
+                                    const isRead = otherParticipants.length > 0 
+                                      && otherParticipants.every((uid: string) => msg.readBy?.includes(uid));
+                                    return isRead ? <CheckCheck size={13} /> : <Check size={13} />;
+                                  })()}
+                                </div>
+                              )}
+                            </div>
                            <div className={`absolute top-0 w-2 h-3 ${isSent ? '-right-2 border-l-[10px] border-l-bubble-sent border-b-[10px] border-b-transparent' : '-left-2 border-r-[10px] border-r-bubble-received border-b-[10px] border-b-transparent'}`} />
                          </div>
                        </div>
@@ -1286,16 +1165,25 @@ const getFileIcon = (fileType: string) => {
                   </button>
                 </div>
 
-{/* Hidden file input */}
-                 <input
-                   type="file"
-                   ref={fileInputRef}
-                   onChange={handleFileSelect}
-                   className="hidden"
-                   accept="image/*,.pdf,.doc,.docx,.txt,.zip,.mp3,.mp4,.mov"
-                 />
+                {/* Hidden file input */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.zip,.mp3,.mp4,.mov"
+                />
 
-                 {/* Recording UI */}
+                {/* Hidden avatar upload input */}
+                <input
+                  type="file"
+                  ref={avatarInputRef}
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                />
+
+                {/* Recording UI */}
                 {isRecording ? (
                   <div className="flex-1 flex items-center gap-4 bg-input-bg rounded-lg px-4 py-2">
                    <div className="flex items-center gap-3">
@@ -1516,10 +1404,6 @@ const getFileIcon = (fileType: string) => {
           </motion.div>
         )}
       </AnimatePresence>
-      <StatusModal
-        isOpen={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
-      />
-     </div>
+    </div>
   );
 }

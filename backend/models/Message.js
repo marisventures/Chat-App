@@ -20,11 +20,6 @@ const messageSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],
-  status: {
-    type: String,
-    enum: ["sent", "delivered", "read"],
-    default: "sent"
-  },
   // Voice message fields
   isVoice: {
     type: Boolean,
@@ -74,13 +69,6 @@ const messageSchema = new mongoose.Schema({
     required: function() {
       return this.isFile;
     }
-  },
-  // Cloudinary file attachment (used with /messages/upload endpoint)
-  fileUrl: {
-    type: String  // Cloudinary URL
-  },
-  publicId: {
-    type: String  // Cloudinary public ID
   }
 }, {
   timestamps: true

@@ -5,22 +5,17 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { authenticateToken } from '../middleware/auth.js';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
 // Configure multer for avatar uploads
-const avatarUploadDir = path.join(__dirname, '../uploads/avatars');
-if (!fs.existsSync(avatarUploadDir)) {
-  fs.mkdirSync(avatarUploadDir, { recursive: true });
-}
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, avatarUploadDir);
+    const uploadDir = 'backend/uploads/avatars';
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const userId = req.user.id;
@@ -104,7 +99,7 @@ router.put('/avatar', authenticateToken, upload.single('avatar'), async (req, re
     if (user.avatar && user.avatar.startsWith('http')) {
       // Extract path from URL
       const url = new URL(user.avatar);
-      const oldAvatarPath = path.join(__dirname, '..', url.pathname);
+      const oldAvatarPath = path.join('backend', url.pathname);
       if (fs.existsSync(oldAvatarPath)) {
         fs.unlinkSync(oldAvatarPath);
       }
@@ -113,7 +108,7 @@ router.put('/avatar', authenticateToken, upload.single('avatar'), async (req, re
     // Construct full avatar URL
     const baseUrl = process.env.APP_URL || `http://localhost:5000`;
     const avatarUrl = `${baseUrl}/uploads/avatars/${req.file.filename}`;
-
+    
     // Update user avatar
     user.avatar = avatarUrl;
     await user.save();
