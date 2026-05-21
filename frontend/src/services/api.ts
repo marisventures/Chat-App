@@ -1,6 +1,9 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-// Derive server URL (without /api) for WebSocket connections
-const SERVER_URL = API_BASE_URL.replace(/\/api\/?$/, '');
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Derive server URL (without /api) for WebSocket connections.
+// In production (relative /api), empty string lets socket.io connect to the same origin.
+const SERVER_URL = API_BASE_URL.startsWith('http')
+  ? API_BASE_URL.replace(/\/api\/?$/, '')
+  : '';
 
 class ApiService {
   private getHeaders(token?: string | null): HeadersInit {
