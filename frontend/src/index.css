@@ -292,14 +292,7 @@ div.hover\:bg-header-bg:hover {
 /* Responsive */
 @media (max-width: 640px) {
   .chat-sidebar {
-    position: absolute;
-    z-index: 40;
-    height: 100%;
-    display: none;
-  }
-  
-  .chat-sidebar.show {
-    display: flex;
+    width: 100%;
   }
   
   .chat-main {
