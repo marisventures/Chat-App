@@ -5,6 +5,8 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import messageRoutes from './routes/messages.js';
@@ -70,6 +72,16 @@ app.use('/api/users', authenticateToken, userRoutes);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('backend/uploads'));
+
+// Serve frontend build in production
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist');
+app.use(express.static(frontendDist));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) return res.status(404).end();
+  res.sendFile(path.join(frontendDist, 'index.html'));
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
