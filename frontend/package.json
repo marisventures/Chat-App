@@ -4,9 +4,9 @@
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview",
+    "dev": "npx vite --port=3000 --host=0.0.0.0",
+    "build": "npx vite build",
+    "preview": "npx vite preview",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
