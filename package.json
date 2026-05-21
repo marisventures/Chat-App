@@ -10,8 +10,9 @@
     "dev:frontend": "cd frontend && npm run dev",
     "dev:all": "concurrently \"npm run dev\" \"npm run dev:frontend\"",
     "install:all": "npm install && cd frontend && npm install",
-    "build": "cd frontend && npx vite build",
-    "lint": "cd frontend && npm run lint"
+    "build": "cd frontend && node node_modules/vite/dist/node/cli.js build",
+    "lint": "cd frontend && npm run lint",
+    "postinstall": "node -e \"const fs=require('fs');['frontend/node_modules/.bin/vite','frontend/node_modules/vite/dist/node/cli.js'].forEach(p=>{try{fs.chmodSync(p,0o755)}catch(e){}})\""
   },
   "keywords": [
     "chat",
