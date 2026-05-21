@@ -81,3 +81,18 @@ class ApiService {
 
 export const api = new ApiService();
 export { API_BASE_URL, SERVER_URL };
+
+export function getAvatarUrl(avatar: string | undefined | null): string {
+  if (!avatar) return '';
+  if (avatar.startsWith('data:')) return avatar;
+  if (avatar.startsWith('http')) {
+    try {
+      const url = new URL(avatar);
+      if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+        return url.pathname;
+      }
+    } catch {}
+    return avatar;
+  }
+  return `${SERVER_URL}${avatar}`;
+}

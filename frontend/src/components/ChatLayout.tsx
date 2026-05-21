@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { usePresence } from '../contexts/PresenceContext';
-import { api, SERVER_URL } from '../services/api';
+import { api, SERVER_URL, getAvatarUrl } from '../services/api';
 import { io, Socket } from 'socket.io-client';
 import EmojiPicker, { Theme } from 'emoji-picker-react';
 
@@ -133,7 +133,8 @@ export default function ChatLayout() {
       if (user) {
         const token = localStorage.getItem('token');
         const newSocket = io(SERVER_URL, {
-          auth: { token }
+          auth: { token },
+          transports: ['websocket', 'polling']
         });
         setSocket(newSocket);
 
@@ -180,7 +181,7 @@ newSocket.on('connect', () => {
               : normalizedMessage.isFile
                 ? `File: ${normalizedMessage.fileName || 'Attachment'}`
                 : 'New message';
-          showDesktopNotification(`New message from ${senderName}`, notificationBody, normalizedMessage.sender.avatar);
+          showDesktopNotification(`New message from ${senderName}`, notificationBody, getAvatarUrl(normalizedMessage.sender.avatar));
         }
 
         // If this message is for the active chat, add it to messages
@@ -298,7 +299,7 @@ newSocket.on('connect', () => {
         const notificationBody = body || 'New message';
         
         // Use a valid icon path - fallback to a data URL if needed
-        const notificationIcon = icon || (user ? user.avatar : undefined) || 
+        const notificationIcon = icon || (user ? getAvatarUrl(user.avatar) : undefined) || 
           (typeof window !== 'undefined' && window.location.origin) + '/favicon.ico' ||
           'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48Y2lyY2xlIGN4PSIxNiIgeT0iMTYiIHI9IjE2IiBmaWxsPSIjMzBGRkZGIi8+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTExIDExaDZ2NkgxMnoiLz48L3N2Zz4=';
         
@@ -863,7 +864,7 @@ new Notification(title, {
               onClick={() => !avatarUploading && avatarInputRef.current?.click()}
             >
               {user?.avatar ? (
-                <img src={user.avatar} alt={user.username} className="w-full h-full object-cover" />
+                <img src={getAvatarUrl(user.avatar)} alt={user.username} className="w-full h-full object-cover" />
               ) : (
                 <User className="text-text-secondary" size={20} />
               )}
@@ -935,9 +936,9 @@ new Notification(title, {
                     onClick={() => setActiveChat(chat)}
                     className={`flex items-center gap-4 p-3 cursor-pointer hover:bg-header-bg transition-colors border-b border-border ${activeChat?._id === chat._id ? 'bg-header-bg' : ''}`}
                   >
-<div className="relative shrink-0">
+                      <div className="relative shrink-0">
                         <img
-                          src={getChatAvatar(chat)}
+                          src={getAvatarUrl(getChatAvatar(chat))}
                           alt={getChatDisplayName(chat)}
                           className="w-12 h-12 rounded-full object-cover border border-border"
                           referrerPolicy="no-referrer"
@@ -1376,9 +1377,9 @@ new Notification(title, {
                       onClick={() => startNewChat(user)}
                       className="w-full p-4 flex items-center gap-3 hover:bg-header-bg transition-colors border-b border-border text-left"
                     >
-<div className="relative shrink-0">
+                      <div className="relative shrink-0">
                          <img
-                           src={user.avatar}
+                           src={getAvatarUrl(user.avatar)}
                            alt={user.username}
                            className="w-12 h-12 rounded-full object-cover border border-border"
                            referrerPolicy="no-referrer"

@@ -96,18 +96,24 @@ router.put('/avatar', authenticateToken, upload.single('avatar'), async (req, re
     }
 
     // Delete old avatar file if exists
-    if (user.avatar && user.avatar.startsWith('http')) {
-      // Extract path from URL
-      const url = new URL(user.avatar);
-      const oldAvatarPath = path.join('backend', url.pathname);
-      if (fs.existsSync(oldAvatarPath)) {
-        fs.unlinkSync(oldAvatarPath);
+    if (user.avatar) {
+      let avatarPath;
+      if (user.avatar.startsWith('http')) {
+        const url = new URL(user.avatar);
+        avatarPath = url.pathname;
+      } else {
+        avatarPath = user.avatar;
+      }
+      if (avatarPath.startsWith('/uploads/')) {
+        const oldAvatarPath = path.join('backend', avatarPath);
+        if (fs.existsSync(oldAvatarPath)) {
+          fs.unlinkSync(oldAvatarPath);
+        }
       }
     }
 
-    // Construct full avatar URL
-    const baseUrl = process.env.APP_URL || `http://localhost:5000`;
-    const avatarUrl = `${baseUrl}/uploads/avatars/${req.file.filename}`;
+    // Store relative path — works on same-origin (dev proxy or production)
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
     
     // Update user avatar
     user.avatar = avatarUrl;

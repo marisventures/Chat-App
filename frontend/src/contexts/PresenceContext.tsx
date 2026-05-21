@@ -27,7 +27,8 @@ export const PresenceProvider = ({ children }: { children: ReactNode }) => {
     if (!token) return;
 
     const newSocket = io(SERVER_URL, {
-      auth: { token }
+      auth: { token },
+      transports: ['websocket', 'polling']
     });
 
     setSocket(newSocket);
