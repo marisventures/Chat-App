@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const rawUrl = import.meta.env.VITE_API_URL || '/api';
+// Normalize: ensure /api suffix for full URLs, strip trailing slash for relative paths
+const API_BASE_URL = rawUrl.startsWith('http')
+  ? rawUrl.replace(/\/?$/, '/api')
+  : rawUrl.replace(/\/$/, '') || '/api';
 // Derive server URL (without /api) for WebSocket connections.
 // In production (relative /api), empty string lets socket.io connect to the same origin.
 const SERVER_URL = API_BASE_URL.startsWith('http')
