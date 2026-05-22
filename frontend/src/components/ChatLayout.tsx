@@ -91,8 +91,11 @@ export default function ChatLayout() {
    const [loadingChats, setLoadingChats] = useState(true);
    const [loadingMessages, setLoadingMessages] = useState(false);
    const messagesEndRef = useRef<HTMLDivElement>(null);
-   const activeChatRef = useRef<Chat | null>(null);
-   const [socket, setSocket] = useState<Socket | null>(null);
+    const activeChatRef = useRef<Chat | null>(null);
+    // Persistent per-chat messages cache — switching chats never wipes message history.
+    // Uses a ref so reads never trigger re-renders; writes only happen on fresh server data.
+    const messagesCacheRef = useRef<Record<string, Message[]>>({});
+    const [socket, setSocket] = useState<Socket | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
 
@@ -371,51 +374,61 @@ new Notification(title, {
     }
   };
 
-  const fetchMessages = async (chatId: string) => {
-    setLoadingMessages(true);
-    try {
-      const data = await api.get(`/messages/${chatId}`, localStorage.getItem('token'));
-      const normalizedData = (data as any[]).map((msg: any) => ({
-        ...msg,
-        sender: {
-          ...msg.sender,
-          _id: String(msg.sender._id)
-        }
-      }));
-      
-      // Mark messages as read after loading them
-      const token = localStorage.getItem('token');
-      const currentUserId = String(user?.id);
-      const unreadMessages = normalizedData.filter((msg: any) => 
-        String(msg.sender._id) !== currentUserId && !(msg.readBy || []).map(String).includes(currentUserId)
-      );
-      
-      // Mark all unread messages as read in parallel
-      if (unreadMessages.length > 0) {
-        await Promise.allSettled(
-          unreadMessages.map((msg: any) => 
-            api.put(`/messages/${msg._id}/status`, {}, token)
-          )
-        );
-        // Update local state with read receipts - add current user to readBy arrays
-        const updatedData = normalizedData.map((msg: any) => {
-          const readByArray = msg.readBy || [];
-          if (String(msg.sender._id) !== currentUserId && !readByArray.map(String).includes(currentUserId)) {
-            return { ...msg, readBy: [...readByArray, currentUserId] };
-          }
-          return msg;
-        });
-        setMessages(updatedData);
-        return;
-      }
-      
-      setMessages(normalizedData);
-    } catch (error) {
-      console.error('Error fetching messages:', error);
-    } finally {
-      setLoadingMessages(false);
-    }
-  };
+   const fetchMessages = async (chatId: string) => {
+     // Show cached messages immediately on chat switch — zero-latency UX
+     const cached = messagesCacheRef.current[chatId];
+     if (cached) {
+       setMessages(cached);
+     }
+     setLoadingMessages(true);
+     try {
+       const data = await api.get(`/messages/${chatId}`, localStorage.getItem('token'));
+       const normalizedData = (data as any[]).map((msg: any) => ({
+         ...msg,
+         sender: {
+           ...msg.sender,
+           _id: String(msg.sender._id)
+         }
+       }));
+
+       // Mark messages as read after loading them
+       const token = localStorage.getItem('token');
+       const currentUserId = String(user?.id);
+       const unreadMessages = normalizedData.filter((msg: any) =>
+         String(msg.sender._id) !== currentUserId && !(msg.readBy || []).map(String).includes(currentUserId)
+       );
+
+       // Mark all unread messages as read in parallel
+       if (unreadMessages.length > 0) {
+         await Promise.allSettled(
+           unreadMessages.map((msg: any) =>
+             api.put(`/messages/${msg._id}/status`, {}, token)
+           )
+         );
+         // Update local state with read receipts - add current user to readBy arrays
+         const updatedData = normalizedData.map((msg: any) => {
+           const readByArray = msg.readBy || [];
+           if (String(msg.sender._id) !== currentUserId && !readByArray.map(String).includes(currentUserId)) {
+             return { ...msg, readBy: [...readByArray, currentUserId] };
+           }
+           return msg;
+         });
+         // Cache before state update
+         messagesCacheRef.current = { ...messagesCacheRef.current, [chatId]: updatedData };
+         setMessages(updatedData);
+         return;
+       }
+
+       // Cache before state update
+       messagesCacheRef.current = { ...messagesCacheRef.current, [chatId]: normalizedData };
+       setMessages(normalizedData);
+     } catch (error) {
+       console.error('Error fetching messages:', error);
+       // On error, keep whatever is already displayed (cached messages if any)
+     } finally {
+       setLoadingMessages(false);
+     }
+   };
 
    const handleSendMessage = async () => {
      if (!inputText.trim() || !activeChat) return;
@@ -850,12 +863,32 @@ new Notification(title, {
 
    const getOtherUser = (chat: Chat) => {
      return chat.users.find(u => String(u._id) !== String(user?.id)) || chat.users[0];
-   };
+    };
 
-  return (
-    <div className="chat-container">
-      {/* Sidebar - Chat List */}
-      <div className={`chat-sidebar ${activeChat ? 'hidden md:flex' : 'flex'}`}>
+  // ── Mobile panel transition variants ───────────────────────────────────
+  const sidebarVariants = {
+    enter:  { x: '-110%', opacity: 0 },
+    center: { x: '0%',    opacity: 1 },
+    exit:   { x: '-110%', opacity: 0 },
+  };
+  const chatVariants = {
+    enter:  { x: '110%',  opacity: 0 },
+    center: { x: '0%',    opacity: 1 },
+    exit:   { x: '110%',  opacity: 0 },
+  };
+
+   return (
+     <div className="chat-container">
+       {/* ══════════════════════ Sidebar Panel ══════════════════════ */}
+       <AnimatePresence initial={false}>
+         <motion.div
+           key="sidebar"
+           initial="enter"
+           animate={!activeChat ? 'center' : 'exit'}
+           variants={sidebarVariants}
+           transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.9 }}
+           className={`chat-sidebar ${activeChat ? 'hidden md:flex' : 'flex'}`}
+         >
         {/* Sidebar Header */}
         <div className="p-4 bg-header-bg flex items-center justify-between border-b border-border">
           <div className="flex items-center gap-3">
@@ -975,11 +1008,20 @@ new Notification(title, {
                 );
               })
           )}
-        </div>
-      </div>
+         </div>
+        </motion.div>
+      </AnimatePresence>
 
-      {/* Main Chat View */}
-      <div className={`chat-main ${activeChat ? 'flex' : 'hidden md:flex'}`}>
+       {/* Main Chat View */}
+       <AnimatePresence initial={false} mode="wait">
+         <motion.div
+           key="chat-main"
+           initial="enter"
+           animate={activeChat ? 'center' : 'exit'}
+           variants={chatVariants}
+           transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.9 }}
+           className={`chat-main ${activeChat ? 'flex' : 'hidden md:flex'}`}
+         >
         {activeChat ? (
           <>
             {/* Main Header */}
@@ -1318,8 +1360,9 @@ new Notification(title, {
               New Chat
             </button>
           </div>
-         )}
-        </div>
+          )}
+        </motion.div>
+      </AnimatePresence>
 
         {/* New Chat Modal */}
       <AnimatePresence>
