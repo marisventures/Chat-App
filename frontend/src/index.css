@@ -42,18 +42,32 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.3s ease, color 0.3s ease;
+    overflow-x: hidden;
   }
+}
+
+html, body {
+  box-sizing: border-box;
+  width: 100vw;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
 }
 
 /* Additional utility classes for Tailwind-generated utilities that need transitions */
 .chat-container {
-  @apply flex h-screen overflow-hidden;
+  width: 100vw;
+  height: 100dvh;
+  overflow: hidden;
+  overflow-x: hidden;
+  display: flex;
   background-color: var(--color-sidebar-bg);
   transition: background-color 0.3s ease;
 }
 
 .chat-sidebar {
-  @apply w-full md:w-80 lg:w-96 border-r flex flex-col shrink-0;
+  @apply w-full md:w-80 lg:w-[400px] border-r flex flex-col shrink-0;
   background-color: var(--color-sidebar-bg);
   border-color: var(--color-border);
   transition: background-color 0.3s ease, border-color 0.3s ease;

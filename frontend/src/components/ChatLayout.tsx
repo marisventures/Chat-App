@@ -1013,7 +1013,7 @@ new Notification(title, {
       </AnimatePresence>
 
        {/* Main Chat View */}
-       <AnimatePresence initial={false} mode="wait">
+       <AnimatePresence initial={false}>
          <motion.div
            key="chat-main"
            initial="enter"
